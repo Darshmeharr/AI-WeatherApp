@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Weather App with Voice</title>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+        transition: background 0.5s ease;
+        color: #fff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        background: linear-gradient(to bottom, #4facfe, #00f2fe);
+    }
+    .container {
+        background: rgba(0,0,0,0.5);
+        padding: 2rem;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 400px;
+        margin: auto;
+    }
+    input {
+        padding: 0.5rem;
+        width: 70%;
+        border-radius: 8px;
+        border: none;
+        margin-right: 0.5rem;
+    }
+    button {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #ff7e5f;
+        color: white;
+        font-weight: bold;
+        transition: background 0.3s;
+    }
+    button:hover {
+        background: #feb47b;
+    }
+    #weatherInfo img {
+        width: 80px;
+        margin: 10px 0;
+    }
+    #aiExplanation {
+        margin-top: 1rem;
+        text-align: left;
+        font-size: 0.9rem;
+        background: rgba(255,255,255,0.1);
+        padding: 1rem;
+        border-radius: 10px;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Weather App</h1>
+    <input type="text" id="city" placeholder="Enter city">
+    <button id="getWeather">Get Weather</button>
+
+    <div id="weatherInfo">
+        <h2 id="temp"></h2>
+        <img id="icon" src="" alt="">
+        <p id="desc"></p>
+    </div>
+
+    <div id="aiExplanation">
+        <h3>AI Weather Summary:</h3>
+        <p id="aiText">Enter a city and click "Get Weather"</p>
+    </div>
+</div>
+
+<script>
+async function getWeather(city) {
+    const apiKey = "YOUR_OPENWEATHER_API_KEY"; // Replace with your OpenWeatherMap API key
+    const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`);
+    const data = await response.json();
+    return data;
+}
+
+function displayWeather(data) {
+    const temp = data.main.temp;
+    const desc = data.weather[0].description;
+    const icon = `https://openweathermap.org/img/wn/${data.weather[0].icon}.png`;
+
+    document.getElementById("temp").innerText = `${temp}°C`;
+    document.getElementById("desc").innerText = desc;
+    document.getElementById("icon").src = icon;
+
+    // Change background based on weather
+    const body = document.body;
+    if(desc.includes("cloud")) body.style.background = "linear-gradient(to bottom, #bdc3c7, #2c3e50)";
+    else if(desc.includes("rain")) body.style.background = "linear-gradient(to bottom, #4e54c8, #8f94fb)";
+    else if(desc.includes("clear")) body.style.background = "linear-gradient(to bottom, #fbc2eb, #a6c1ee)";
+    else body.style.background = "linear-gradient(to bottom, #4facfe, #00f2fe)";
+}
+
+async function getAIExplanation(temp, description, city) {
+    const prompt = `Explain the weather for ${city}: temperature ${temp}°C, conditions ${description}. Give friendly suggestions for today.`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer YOUR_OPENAI_API_KEY" // Replace with your OpenAI API key
+        },
+        body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [{ role: "user", content: prompt }]
+        })
+    });
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+// Function to read text aloud using browser speechSynthesis
+function speakText(text) {
+    if('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 1;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+async function showWeather() {
+    const city = document.getElementById("city").value;
+    if(!city) return alert("Please enter a city");
+
+    const weatherData = await getWeather(city);
+
+    if(weatherData.cod !== 200) {
+        alert("City not found!");
+        return;
+    }
+
+    displayWeather(weatherData);
+
+    const aiText = await getAIExplanation(weatherData.main.temp, weatherData.weather[0].description, city);
+    document.getElementById("aiText").innerText = aiText;
+
+    // Voice read AI explanation
+    speakText(aiText);
+}
+
+document.getElementById("getWeather").addEventListener("click", showWeather);
+</script>
+
+</body>
+</html>
